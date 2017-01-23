@@ -1,10 +1,13 @@
 #!/usr/bin/env rdmd
 
-import std.algorithm;
-import std.conv;
-import std.file;
+import std.algorithm : reduce, splitter, max, map;
+import std.conv      : to;
+import std.file      : getSize;
 import std.getopt;
 import std.stdio;
+
+enum PROGRAM = "wc";
+enum VERSION = 0.001;
 
 int main(string[] args) {
 
@@ -18,19 +21,36 @@ int main(string[] args) {
     bool print_w; // words
     bool print_c; // characters
     bool print_b; // bytes
-    bool print_L; // longest line
+    bool print_m; // longest line
+
+    bool vers;
 
     // parse command-line arguments
-    getopt( args,
-        "l|lines",           &print_l,
-        "w|words",           &print_w,
-        "m|chars",           &print_c,
-        "c|bytes",           &print_b,
-        "L|max-line-length", &print_L,
+    auto opts = getopt( args,
+        std.getopt.config.caseSensitive,
+        std.getopt.config.bundling,
+        "l|lines",           "print the newline counts",             &print_l,
+        "w|words",           "print the word counts",                &print_w,
+        "m|chars",           "print the character counts",           &print_c,
+        "c|bytes",           "print the byte counts",                &print_b,
+        "L|max-line-length", "print the length of the longest line", &print_m,
+        "version",           "output version information and exit",  &vers,
     );
 
+    // print help message
+    if (opts.helpWanted) {
+        printOpts(opts.options);
+        return(0);
+    }
+
+    // print version message
+    if (vers) {
+        printVersion();
+        return(0);
+    }
+
     // default is to pring word, line, and byte counts
-    if ( !( print_b || print_c || print_l || print_w || print_L) ) {
+    if ( !( print_b || print_c || print_l || print_w || print_m) ) {
         print_l = true;
         print_w = true;
         print_b = true;
@@ -57,38 +77,53 @@ int main(string[] args) {
 
         auto file = File(fn);
 
-        //foreach(wchar[] line; lines(file)) {
+
+        // iterate over lines (might be faster to use byChunk, but that
+        // complicates word counting quite a bit
         foreach (line; file.byLine(KeepTerminator.yes)) {
 
+            // don't continue if we only want bytes. This could be implemented
+            // as simple outer if() statement but would add another block
+            // level, and this hack has virtually no cost
+            if (! (print_c || print_m || print_w || print_l) ) {
+                break;
+            }
 
-            // count lines
-            if (print_l && line[$-1] == '\n') {
+            bool has_nl = line[$-1] == '\n'
+                ? true
+                : false;
+
+            // count newlines
+            if (has_nl) {
                 ++lLineCount;
             }
 
-            // the conversion to dchar is slow, so skip if possible
-            if (! (print_c || print_L || print_w) ) {
+            // short circuit if possible
+            if (! (print_c || print_m || print_w) ) {
                 continue;
             }
 
-            // necessary to properly handle wide characters
-            dchar[] dline = to!(dchar[])(line);
+            // find actual line length, accounting for wide chars
+            // (see UTF-8 spec to understand inequality)
+            size_t line_len = 0;
+            foreach (b; line) {
+                if ( (b >> 6) != 0b10 ) {
+                    ++line_len;
+                }
+            }
 
-            // putting conditionals around the rest of these seems to make no
-            // noticeable difference in speed, so they are left out
-
-            // count characters
-            lCharCount += dline.length;
+            // count chars
+            lCharCount += line_len;
 
             // track max line length
-            if (dline.length > lMaxLine) {
-                lMaxLine = dline.length;
-                if (dline[$-1] == '\n') --lMaxLine;
+            if (has_nl) --line_len;
+            if (line_len > lMaxLine) {
+                lMaxLine = line_len;
             }
 
             // count words
-            // splitter() is faster than split() !!!
-            foreach(dchar[] word; splitter(dline)) {
+            //splitter() is faster than split() !!!
+            foreach(char[] word; splitter(line)) {
                 lWordCount += 1;
             }
 
@@ -99,11 +134,15 @@ int main(string[] args) {
         if (print_w) vals ~= lWordCount;
         if (print_c) vals ~= lCharCount;
         if (print_b) vals ~= lByteCount;
-        if (print_L) vals ~= lMaxLine;
+        if (print_m) vals ~= lMaxLine;
 
         // emulate coreutils - recalculate field length for single files
         if (fns.length < 2) {
-            l_field = to!int( reduce!(max)( map!(a => (to!string(a).length))(vals) ) );
+            l_field = to!int(
+                reduce!(max)(
+                map!(a => (to!string(a).length))
+                (vals) )
+            );
         }
        
         foreach (val; vals) {
@@ -127,7 +166,7 @@ int main(string[] args) {
         if (print_w) vals ~= wordCount;
         if (print_c) vals ~= charCount;
         if (print_b) vals ~= byteCount;
-        if (print_L) vals ~= maxLine;
+        if (print_m) vals ~= maxLine;
 
         foreach (val; vals) {
             writef("%*s ", l_field, val);
@@ -137,4 +176,42 @@ int main(string[] args) {
     }
 
     return 0;
+}
+
+void printOpts( Option[] opts ) {
+
+    writeln(q"HERE
+Usage: wc [OPTION]... [FILE]...
+Print newline, word, and byte counts for each FILE, and a total line if
+more than one FILE is specified.  With no FILE, or when FILE is -,
+read standard input.  A word is a non-zero-length sequence of characters
+delimited by white space.
+The options below may be used to select which counts are printed, always in
+the following order: newline, word, character, byte, maximum line length.
+HERE");
+
+    foreach (opt; opts) {
+        writefln("%5s %16s %s", opt.optShort, opt.optLong, opt.help);
+    }
+
+
+    writeln(q"HERE
+
+Full documentation at: <http://foo.bar/wc>
+HERE");
+
+}
+
+void printVersion() {
+
+    writeln( PROGRAM ~ " " ~ to!string(VERSION) );
+    writeln(q"HERE
+Copyright (C) 2017 Jeremy Volkening
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Written by Jeremy Volkening
+HERE");
+
 }
