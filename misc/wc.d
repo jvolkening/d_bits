@@ -66,16 +66,26 @@ int main(string[] args) {
     }
     int l_field = to!int( to!string(byteCount).length );
 
-    // iterate over filenames
+    // could be re-written using std:algorithm ???
+    File[] files;
     foreach (fn; fns) {
+        files ~= File(fn);
+    }
+    if (files.length < 1) {
+        files ~= stdin;
+    }
+
+    // iterate over filenames
+    foreach (file; files) {
 
         ulong lLineCount;
         ulong lWordCount;
         ulong lCharCount;
-        ulong lByteCount = getSize(fn);
+        //ulong lByteCount = getSize(fn);
+        ulong lByteCount;
         ulong lMaxLine;
 
-        auto file = File(fn);
+        //auto file = File(fn);
 
 
         // iterate over lines (might be faster to use byChunk, but that
@@ -85,8 +95,14 @@ int main(string[] args) {
             // don't continue if we only want bytes. This could be implemented
             // as simple outer if() statement but would add another block
             // level, and this hack has virtually no cost
+            //if (! (print_c || print_m || print_w || print_l) ) {
+                //break;
+            //}
+
+            lByteCount += line.length;
+
             if (! (print_c || print_m || print_w || print_l) ) {
-                break;
+                continue;
             }
 
             bool has_nl = line[$-1] == '\n'
@@ -148,7 +164,7 @@ int main(string[] args) {
         foreach (val; vals) {
             writef("%*s ", l_field, val);
         }
-        writeln(fn);
+        writeln(file.name);
 
         wordCount += lWordCount;
         lineCount += lLineCount;
@@ -180,7 +196,7 @@ int main(string[] args) {
 
 void printOpts( Option[] opts ) {
 
-    writeln(q"HERE
+    writeln(q"[
 Usage: wc [OPTION]... [FILE]...
 Print newline, word, and byte counts for each FILE, and a total line if
 more than one FILE is specified.  With no FILE, or when FILE is -,
@@ -188,30 +204,31 @@ read standard input.  A word is a non-zero-length sequence of characters
 delimited by white space.
 The options below may be used to select which counts are printed, always in
 the following order: newline, word, character, byte, maximum line length.
-HERE");
+]");
 
     foreach (opt; opts) {
-        writefln("%5s %16s %s", opt.optShort, opt.optLong, opt.help);
+        writefln("%5s %-17s %s", opt.optShort, opt.optLong, opt.help);
     }
 
 
-    writeln(q"HERE
+    writeln(q"[
 
 Full documentation at: <http://foo.bar/wc>
-HERE");
+]");
 
 }
 
 void printVersion() {
 
+    writeln; // I like a little whitespace
     writeln( PROGRAM ~ " " ~ to!string(VERSION) );
-    writeln(q"HERE
+    writeln(q"[
 Copyright (C) 2017 Jeremy Volkening
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 Written by Jeremy Volkening
-HERE");
+]");
 
 }
