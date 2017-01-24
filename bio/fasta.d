@@ -66,9 +66,12 @@ struct Fasta {
         
     bool next_seq(out Seq ret) {
 
-        char[] ln;
         auto builder = appender!string;
-        if (foo.eof()) return false;
+        builder.reserve(4096); // can speed up, not much memory overhead
+
+        if (foo.eof) return false;
+
+        char[] ln;
         while (foo.readln(ln)) {
             if (ln[0] == '>') {
                 bool first = id.length == 0;
