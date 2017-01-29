@@ -6,12 +6,12 @@ import std.range : iota;
 
 struct Seq {
 
-    string seq;
+    char[] seq;
     string id;
     string desc;
     string qual;
 
-    static int ll = 60;
+    static int ll = 50;
 
     // format as FASTA
     @property string as_fasta() const {

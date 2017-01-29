@@ -14,7 +14,7 @@ struct Fasta {
 
     File foo;
     File f_idx;
-    string seq;
+    char[] seq;
     string id;
     string desc;
     ulong[][string] idx;
@@ -58,7 +58,7 @@ struct Fasta {
         auto seq  = tr(buf," \t\n\r","","d");
 
         ret.id  = id;
-        ret.seq = seq.idup;
+        ret.seq = seq;
 
         return true;
 
@@ -75,7 +75,7 @@ struct Fasta {
         while (foo.readln(ln)) {
             if (ln[0] == '>') {
                 bool first = id.length == 0;
-                seq = builder.data;
+                seq = builder.data.dup;
                 ret.seq  = seq;
                 ret.id   = id;
                 ret.desc = desc;
@@ -93,7 +93,7 @@ struct Fasta {
                 builder.put(ln.chomp);
             }
         }
-        seq = builder.data;
+        seq = builder.data.dup;
         ret.seq  = seq;
         ret.id   = id;
         ret.desc = desc;
