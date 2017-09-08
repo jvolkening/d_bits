@@ -1,6 +1,6 @@
 #!/usr/bin/env rdmd
 
-import std.algorithm : reduce, splitter, max, map;
+import std.algorithm : map;
 import std.conv      : to;
 import std.getopt;
 import std.stdio;
