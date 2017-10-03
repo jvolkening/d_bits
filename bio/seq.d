@@ -7,9 +7,9 @@ import std.range : iota;
 struct Seq {
 
     char[] seq;
+    char[] qual;
     string id;
     string desc;
-    string qual;
 
     static int ll = 50;
 
@@ -29,6 +29,22 @@ struct Seq {
             builder.put( this.seq[start..end] );
             builder.put("\n");
         }
+        return builder.data;
+
+    }
+
+    // format as FASTQ
+    @property string as_fastq() const {
+
+        auto builder = appender!string;
+        builder.put("@" ~ this.id);
+        if (this.desc.length > 0) {
+            builder.put(" " ~ this.desc);
+        }
+        builder.put("\n");
+        builder.put(this.seq);
+        builder.put("\n+\n");
+        builder.put(this.qual);
         return builder.data;
 
     }
