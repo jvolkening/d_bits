@@ -86,6 +86,9 @@ struct Fasta {
                     auto nws = indexOfNeither(ln, " \t", ws);
                     desc = ln[nws..$-1].dup;
                 }
+                else {
+                    id = ln[1..$-1].dup;
+                }
                 assert(id.length > 0);
                 if (! first) return true;
             }
